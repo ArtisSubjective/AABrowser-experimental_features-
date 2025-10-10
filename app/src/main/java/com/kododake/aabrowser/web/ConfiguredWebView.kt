@@ -49,7 +49,6 @@ fun configureWebView(
         settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
             javaScriptCanOpenWindowsAutomatically = true
             setSupportMultipleWindows(true)
             setSupportZoom(true)
@@ -60,10 +59,8 @@ fun configureWebView(
             cacheMode = WebSettings.LOAD_DEFAULT
             allowContentAccess = true
             allowFileAccess = false
-            allowFileAccessFromFileURLs = false
-            allowUniversalAccessFromFileURLs = false
             mediaPlaybackRequiresUserGesture = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             userAgentString = buildUserAgent(originalUserAgent, useDesktopMode)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 safeBrowsingEnabled = true
@@ -150,18 +147,6 @@ fun configureWebView(
                     callbacks.onEnterFullscreen(view, callback)
                 } else {
                     super.onShowCustomView(view, callback)
-                }
-            }
-
-            override fun onShowCustomView(
-                view: View?,
-                requestedOrientation: Int,
-                callback: CustomViewCallback?
-            ) {
-                if (view != null && callback != null) {
-                    callbacks.onEnterFullscreen(view, callback)
-                } else {
-                    super.onShowCustomView(view, requestedOrientation, callback)
                 }
             }
 

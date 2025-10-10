@@ -3,6 +3,7 @@ package com.kododake.aabrowser
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -34,6 +35,9 @@ import com.google.android.material.textview.MaterialTextView
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private val isDebugBuild: Boolean by lazy {
+        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
     private val handler = Handler(Looper.getMainLooper())
     private val autoHideMenuFab = Runnable { binding.menuFab.hide() }
     private val showMenuFabRunnable = Runnable {
@@ -115,8 +119,10 @@ class MainActivity : AppCompatActivity() {
             },
             onError = { _, description ->
                 runOnUiThread {
-                    val message = description ?: getString(R.string.error_generic_message)
-                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                    if (isDebugBuild) {
+                        val message = description ?: getString(R.string.error_generic_message)
+                        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             onEnterFullscreen = { view, callback ->

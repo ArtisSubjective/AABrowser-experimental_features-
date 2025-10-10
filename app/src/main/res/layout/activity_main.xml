@@ -217,7 +217,7 @@
                                 android:contentDescription="@string/menu_open_github"
                                 android:padding="8dp"
                                 android:src="@drawable/ic_github"
-                                android:tint="?attr/colorOnSurface" />
+                                app:tint="?attr/colorOnSurface" />
                         </LinearLayout>
                     </LinearLayout>
                 </androidx.core.widget.NestedScrollView>

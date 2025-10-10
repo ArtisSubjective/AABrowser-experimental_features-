@@ -59,4 +59,14 @@ This project thrives on community contributions! Whether you're fixing bugs, add
 
 ---
 
+## Donation
+
+If you like the application, please consider making a donation:  
+bitcoin: 
+`
+bc1qnpqpfq7e8pjtlqj7aa6x2y2c9ctnpts5u9lx7v
+`
+
+---
+
 **Stay safe, keep your eyes on the road, and happy browsing! 🚗💨**

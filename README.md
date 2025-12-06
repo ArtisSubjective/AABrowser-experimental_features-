@@ -1,5 +1,6 @@
 # 🚗 AA Browser
 
+**Requires Android 15 or later**
 ## The ultimate WebView browser experience for Android Auto head units
 
 Transform your driving experience with a sleek, modern browser designed specifically for the road. Built with cutting-edge Material 3 design and optimized for automotive interfaces.
@@ -26,6 +27,8 @@ Since I don't collect any usage data or crash logs, I rely on your reports. If y
 ---
 
 ## 📱 Quick Start & Safety Check 🚦
+
+**Requires Android 15 or later**
 
 This app is built for passengers, for when you're parked, or for when you're just enjoying a flat, boring "desert world."
 

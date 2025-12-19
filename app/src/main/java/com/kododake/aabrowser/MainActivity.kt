@@ -18,6 +18,7 @@ import android.webkit.WebChromeClient
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.Toast
+import com.google.android.material.color.DynamicColors
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowInsetsCompat
@@ -51,11 +52,29 @@ class MainActivity : AppCompatActivity() {
     private var currentUrl: String = BrowserPreferences.defaultUrl()
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    private var isShowingCleartextDialog: Boolean = false
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DynamicColors.applyToActivityIfAvailable(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val disp = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                this.display
+            } else {
+                val dm = getSystemService(Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager
+                dm?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+            }
+            val best = disp?.supportedModes?.maxWithOrNull(compareBy({ it.refreshRate }, { it.physicalWidth.toLong() * it.physicalHeight }))
+            best?.let { mode ->
+                val attrs = window.attributes
+                attrs.preferredDisplayModeId = mode.modeId
+                window.attributes = attrs
+            }
+        }
 
         setupUi()
         setupBackPressHandling()
@@ -95,6 +114,7 @@ class MainActivity : AppCompatActivity() {
         val desktopMode = BrowserPreferences.shouldUseDesktopMode(this)
 
         binding.menuFab.hide()
+        binding.addressInputLayout.setEndIconVisible(true)
 
         val callbacks = BrowserCallbacks(
             onUrlChange = { url ->
@@ -117,6 +137,62 @@ class MainActivity : AppCompatActivity() {
             onShowDownloadPrompt = { uri ->
                 runOnUiThread { openUriExternally(uri) }
             },
+            onCleartextNavigationRequested = { uri, allowOnce, allowhostPermanently, cancel ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) {
+                        cancel()
+                        return@runOnUiThread
+                    }
+                    if (isShowingCleartextDialog) return@runOnUiThread
+                    isShowingCleartextDialog = true
+                    val host = uri.host ?: uri.toString()
+                    val inflater = layoutInflater
+                    val view = inflater.inflate(R.layout.dialog_cleartext_confirmation, null)
+                    val titleView = view.findViewById<android.widget.TextView>(R.id.cleartext_title)
+                    val messageView = view.findViewById<android.widget.TextView>(R.id.cleartext_message)
+                    titleView.text = "Insecure connection"
+                    messageView.text = "You are about to open an HTTP (insecure) site: $host. This may expose data to network attackers. What would you like to do?"
+
+                    val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(
+                        this,
+                        com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog
+                    ).setView(view).create()
+
+                    dialog.setOnDismissListener {
+                        isShowingCleartextDialog = false
+                    }
+
+                    val btnCancel = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel_dialog)
+                    val btnAllowOnce = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_allow_once)
+                    val btnAllowhost = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_allow_host)
+
+                    btnCancel.setOnClickListener {
+                        try { dialog.dismiss() } catch (_: Exception) {}
+                        cancel()
+                    }
+
+                    btnAllowOnce.setOnClickListener {
+                        try { dialog.dismiss() } catch (_: Exception) {}
+                        allowOnce()
+                    }
+
+                    btnAllowhost.setOnClickListener {
+                        try { dialog.dismiss() } catch (_: Exception) {}
+                        allowhostPermanently()
+                    }
+
+                    try {
+                        dialog.show()
+                        val w = dialog.window
+                        val metrics = resources.displayMetrics
+                        val width = (metrics.widthPixels * 0.9).toInt()
+                        w?.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
+                    } catch (e: Exception) {
+                        isShowingCleartextDialog = false
+                        cancel()
+                    }
+                }
+            },
             onError = { _, description ->
                 runOnUiThread {
                     if (isDebugBuild) {
@@ -136,6 +212,17 @@ class MainActivity : AppCompatActivity() {
         webView = binding.webView
         webView?.let { view ->
             configureWebView(view, callbacks, desktopMode)
+            view.addJavascriptInterface(object {
+                @android.webkit.JavascriptInterface
+                fun openExternal(url: String) {
+                    if (url.isNullOrBlank()) return
+                    runOnUiThread {
+                        runCatching {
+                            openUriExternally(Uri.parse(url))
+                        }
+                    }
+                }
+            }, "Android")
             view.setOnTouchListener { _, _ ->
                 showMenuButtonTemporarily()
                 false
@@ -167,6 +254,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        binding.addressInputLayout.setEndIconOnClickListener {
+            binding.addressEdit.setText("")
+            binding.addressEdit.clearFocus()
+            hideKeyboard(binding.addressEdit)
+            updateNavigationButtons()
+        }
+
         binding.buttonGo.setOnClickListener { navigateToAddress() }
         binding.buttonReload.setOnClickListener { webView?.reload() }
         binding.buttonBack.setOnClickListener {
@@ -195,13 +289,40 @@ class MainActivity : AppCompatActivity() {
             openUriExternally(Uri.parse(GITHUB_REPO_URL))
         }
 
+        binding.githubOpen.setOnClickListener {
+            openUriExternally(Uri.parse(GITHUB_REPO_URL))
+        }
+
         binding.buttonBookmarks.setOnClickListener { showBookmarkManager() }
         binding.buttonBookmarkManagerBack.setOnClickListener { hideBookmarkManager() }
         binding.buttonBookmarkAdd.setOnClickListener { addBookmarkForCurrentPage() }
 
+        binding.buttonCheckLatest.setOnClickListener {
+            try {
+                startActivity(Intent(this, CheckLatestActivity::class.java))
+            } catch (_: Exception) {
+
+            }
+        }
+
         updateNavigationButtons()
         showMenuButtonTemporarily()
         refreshBookmarks()
+
+        try {
+            val pInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(
+                    packageName,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(0L)
+                )
+            } else {
+                packageManager.getPackageInfo(packageName, 0)
+            }
+            val versionName = pInfo.versionName ?: ""
+            binding.menuVersion.text = getString(R.string.installed_version_label, "v$versionName")
+        } catch (_: Exception) {
+            
+        }
     }
 
     private fun setupBackPressHandling() {
@@ -262,6 +383,7 @@ class MainActivity : AppCompatActivity() {
     private fun showMenuOverlay() {
         hideBookmarkManager()
         binding.menuOverlay.visibility = View.VISIBLE
+        binding.addressInputLayout.setEndIconVisible(true)
         binding.menuFab.hide()
         handler.removeCallbacks(showMenuFabRunnable)
         handler.removeCallbacks(autoHideMenuFab)
@@ -269,10 +391,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hideMenuOverlay() {
-        if (binding.menuOverlay.visibility == View.VISIBLE) {
+            if (binding.menuOverlay.visibility == View.VISIBLE) {
             binding.menuOverlay.visibility = View.GONE
             hideKeyboard(binding.addressEdit)
             hideBookmarkManager()
+            binding.addressInputLayout.setEndIconVisible(true)
             showMenuButtonTemporarily()
         }
     }

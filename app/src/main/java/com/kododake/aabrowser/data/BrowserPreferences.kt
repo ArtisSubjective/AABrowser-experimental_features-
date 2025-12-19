@@ -10,6 +10,7 @@ object BrowserPreferences {
     private const val KEY_LAST_URL = "last_url"
     private const val KEY_DESKTOP_MODE = "desktop_mode"
     private const val KEY_BOOKMARKS = "bookmarks"
+    private const val KEY_ALLOWED_CLEAR_HOSTS = "allowed_clear_hosts"
     private const val DEFAULT_URL = "https://www.google.com"
     private const val SEARCH_TEMPLATE = "https://www.google.com/search?q=%s"
 
@@ -54,7 +55,15 @@ object BrowserPreferences {
             .apply()
     }
 
-    fun getBookmarks(context: Context): List<String> = loadBookmarks(context)
+    fun getBookmarks(context: Context): List<String> {
+        val bookmarks = loadBookmarks(context)
+        if (bookmarks.isEmpty()) {
+            val defaults = listOf("https://www.google.com", "https://www.youtube.com")
+            persistBookmarks(context, defaults)
+            return defaults
+        }
+        return bookmarks
+    }
 
     fun addBookmark(context: Context, url: String): Boolean {
         val navigable = formatNavigableUrl(url)
@@ -93,6 +102,37 @@ object BrowserPreferences {
     fun toSearchUrl(query: String): String = SEARCH_TEMPLATE.format(Uri.encode(query))
 
     fun defaultUrl(): String = DEFAULT_URL
+
+    fun isHostAllowedCleartext(context: Context, host: String?): Boolean {
+        if (host == null) return false
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val serialized = prefs.getString(KEY_ALLOWED_CLEAR_HOSTS, null) ?: return false
+        return runCatching {
+            val array = JSONArray(serialized)
+            for (i in 0 until array.length()) {
+                if (array.optString(i).equals(host, ignoreCase = true)) return true
+            }
+            false
+        }.getOrDefault(false)
+    }
+
+    fun addAllowedCleartextHost(context: Context, host: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val current = prefs.getString(KEY_ALLOWED_CLEAR_HOSTS, null)
+        val list = runCatching {
+            val arr = JSONArray(current)
+            buildList(arr.length()) {
+                for (i in 0 until arr.length()) add(arr.optString(i))
+            }.toMutableList()
+        }.getOrDefault(mutableListOf())
+        if (list.any { it.equals(host, ignoreCase = true) }) return
+        list.add(host)
+        val out = JSONArray()
+        list.forEach { out.put(it) }
+        prefs.edit().putString(KEY_ALLOWED_CLEAR_HOSTS, out.toString()).apply()
+    }
+
+    
 
     private fun loadBookmarks(context: Context): List<String> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

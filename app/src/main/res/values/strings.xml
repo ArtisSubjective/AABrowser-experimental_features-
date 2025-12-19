@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">AABrowser</string>
-    <string name="menu_title">Browser menu</string>
+    <string name="app_credit">AABrowser — by Kododake</string>
+    <string name="author_name">Kododake</string>
+    <string name="menu_title">AABrowser menu</string>
     <string name="menu_close">Close</string>
     <string name="menu_address_label">Address or search</string>
     <string name="menu_desktop_mode">Request desktop site</string>
@@ -14,6 +16,10 @@
     <string name="menu_bookmarks">Bookmarks</string>
     <string name="menu_bookmark_add">Bookmark current page</string>
     <string name="menu_bookmark_empty">No bookmarks yet</string>
+    <string name="installed_version_label">Installed Version : %1$s</string>
+    <string name="menu_checking_latest">Checking latest release...</string>
+    <string name="latest_version_label">Latest: %1$s</string>
+    <string name="menu_check_latest">Check latest</string>
     <string name="bookmark_added">Saved to bookmarks</string>
     <string name="bookmark_exists">Already in bookmarks</string>
     <string name="bookmark_removed">Bookmark removed</string>

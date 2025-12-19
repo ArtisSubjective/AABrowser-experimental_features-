@@ -39,8 +39,6 @@ This app is built for passengers, for when you're parked, or for when you're jus
 
 **Ready to drive?** If you agree to the license, download the latest APK from the [GitHub Releases](https://github.com/kododake/AABrowser/releases) page.
 
-**P.S. Quick developer confession:** If you download the latest APK and it still shows "Version 1.0"—don't worry! That *is* the newest code (it has all the 1.1 features). I totally messed up and forgot to update the version number *inside* the app before pushing the release. 😅 Just know you have the correct, latest version!
-
 ---
 
 ## ⚠️ Current Issue

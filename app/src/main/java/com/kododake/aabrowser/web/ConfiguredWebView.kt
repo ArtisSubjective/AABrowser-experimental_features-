@@ -1,8 +1,6 @@
 package com.kododake.aabrowser.web
 
-import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
@@ -16,6 +14,9 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
+import android.net.http.SslError
+import android.webkit.SslErrorHandler
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.net.toUri
@@ -27,11 +28,16 @@ data class BrowserCallbacks(
     val onProgressChange: (Int) -> Unit = {},
     val onShowDownloadPrompt: (Uri) -> Unit = {},
     val onError: (Int, String?) -> Unit = { _, _ -> },
+    val onCleartextNavigationRequested: (
+        Uri,
+        allowOnce: () -> Unit,
+        allowHostPermanently: () -> Unit,
+        cancel: () -> Unit
+    ) -> Unit = { _, _, _, cancel -> cancel() },
     val onEnterFullscreen: (View, WebChromeClient.CustomViewCallback) -> Unit = { _, _ -> },
     val onExitFullscreen: () -> Unit = {}
 )
 
-@SuppressLint("SetJavaScriptEnabled")
 fun configureWebView(
     webView: WebView,
     callbacks: BrowserCallbacks = BrowserCallbacks(),
@@ -54,8 +60,8 @@ fun configureWebView(
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
-            loadWithOverviewMode = false
-            useWideViewPort = false
+            loadWithOverviewMode = true
+            useWideViewPort = true
             cacheMode = WebSettings.LOAD_DEFAULT
             allowContentAccess = true
             allowFileAccess = false
@@ -64,6 +70,9 @@ fun configureWebView(
             userAgentString = buildUserAgent(originalUserAgent, useDesktopMode)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 safeBrowsingEnabled = true
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                offscreenPreRaster = true
             }
         }
         val scale = context.resources.displayMetrics.density * 100
@@ -74,13 +83,59 @@ fun configureWebView(
             it.setAcceptThirdPartyCookies(this, true)
         }
 
+        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                return handleUri(view, request.url)
+                val uri = request.url
+                val scheme = uri.scheme?.lowercase()
+                if (scheme == "http") {
+                    val host = uri.host?.lowercase()
+                    if (!com.kododake.aabrowser.data.BrowserPreferences.isHostAllowedCleartext(view.context, host)) {
+                        val allowOnce = {
+                            view.post { view.loadUrl(uri.toString()) }
+                            kotlin.Unit
+                        }
+                        val allowHost = {
+                            view.context?.let { ctx ->
+                                val hostToStore = uri.host?.lowercase()
+                                if (hostToStore != null) com.kododake.aabrowser.data.BrowserPreferences.addAllowedCleartextHost(ctx, hostToStore)
+                            }
+                            view.post { view.loadUrl(uri.toString()) }
+                            kotlin.Unit
+                        }
+                        val cancel = { kotlin.Unit }
+                        callbacks.onCleartextNavigationRequested(uri, allowOnce, allowHost, cancel)
+                        return true
+                    }
+                }
+                return handleUri(view, uri)
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return handleUri(view, Uri.parse(url))
+                val uri = Uri.parse(url)
+                val scheme = uri.scheme?.lowercase()
+                if (scheme == "http") {
+                    val host = uri.host?.lowercase()
+                    if (!com.kododake.aabrowser.data.BrowserPreferences.isHostAllowedCleartext(view.context, host)) {
+                        val allowOnce = {
+                            view.post { view.loadUrl(uri.toString()) }
+                            kotlin.Unit
+                        }
+                        val allowHost = {
+                            view.context?.let { ctx ->
+                                val hostToStore = uri.host?.lowercase()
+                                if (hostToStore != null) com.kododake.aabrowser.data.BrowserPreferences.addAllowedCleartextHost(ctx, hostToStore)
+                            }
+                            view.post { view.loadUrl(uri.toString()) }
+                            kotlin.Unit
+                        }
+                        val cancel = { kotlin.Unit }
+                        callbacks.onCleartextNavigationRequested(uri, allowOnce, allowHost, cancel)
+                        return true
+                    }
+                }
+                return handleUri(view, uri)
             }
 
             private fun handleUri(view: WebView, uri: Uri?): Boolean {
@@ -90,24 +145,40 @@ fun configureWebView(
                     return false
                 }
 
-                val handledExternally = runCatching {
-                    val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    view.context.startActivity(intent)
-                    true
-                }.getOrElse { throwable ->
-                    if (throwable is ActivityNotFoundException) {
-                        false
-                    } else {
-                        false
-                    }
-                }
-
-                return handledExternally
+                return true
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                url?.let(callbacks.onUrlChange)
+                val stringUrl = url ?: return
+                val uri = Uri.parse(stringUrl)
+                val scheme = uri.scheme?.lowercase()
+                if (scheme == "http") {
+                    val host = uri.host?.lowercase()
+                    val allowedOnce = getTag(R.id.webview_allow_once_uri_tag) as? String
+                    if (allowedOnce == stringUrl) {
+                        setTag(R.id.webview_allow_once_uri_tag, null)
+                    } else if (!com.kododake.aabrowser.data.BrowserPreferences.isHostAllowedCleartext(view.context, host)) {
+                        stopLoading()
+                        val allowOnce = {
+                            setTag(R.id.webview_allow_once_uri_tag, stringUrl)
+                            view.post { view.loadUrl(stringUrl) }
+                            kotlin.Unit
+                        }
+                        val allowHost = {
+                            view.context?.let { ctx ->
+                                val hostToStore = uri.host?.lowercase()
+                                if (hostToStore != null) com.kododake.aabrowser.data.BrowserPreferences.addAllowedCleartextHost(ctx, hostToStore)
+                            }
+                            view.post { view.loadUrl(stringUrl) }
+                            kotlin.Unit
+                        }
+                        val cancel = { kotlin.Unit }
+                        callbacks.onCleartextNavigationRequested(uri, allowOnce, allowHost, cancel)
+                        return
+                    }
+                }
+                url.let(callbacks.onUrlChange)
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
@@ -120,7 +191,69 @@ fun configureWebView(
                 request: WebResourceRequest,
                 error: WebResourceError
             ) {
+                if (request.isForMainFrame) {
+                    val code = error.errorCode
+                    val shouldShowErrorPage = when (code) {
+                        WebViewClient.ERROR_HOST_LOOKUP,
+                        WebViewClient.ERROR_CONNECT,
+                        WebViewClient.ERROR_TIMEOUT,
+                        WebViewClient.ERROR_UNKNOWN,
+                        WebViewClient.ERROR_PROXY_AUTHENTICATION -> true
+                        else -> false
+                    }
+
+                    if (shouldShowErrorPage) {
+                        val failed = request.url?.toString().orEmpty()
+                        val message = error.description?.toString().orEmpty()
+                        val assetUrl = "file:///android_asset/error.html?failedUrl=${Uri.encode(failed)}&code=$code&message=${Uri.encode(message)}"
+                        try {
+                            view.loadUrl(assetUrl)
+                        } catch (_: Exception) {
+                            callbacks.onError(code, error.description?.toString())
+                        }
+                        return
+                    }
+                }
+
                 callbacks.onError(error.errorCode, error.description?.toString())
+            }
+
+            override fun onReceivedHttpError(
+                view: WebView,
+                request: WebResourceRequest,
+                errorResponse: WebResourceResponse
+            ) {
+                if (request.isForMainFrame) {
+                    val status = try { errorResponse.statusCode } catch (_: Exception) { -1 }
+                    val reason = errorResponse.reasonPhrase ?: ""
+                    val failed = request.url?.toString().orEmpty()
+                    val assetUrl = "file:///android_asset/error.html?failedUrl=${Uri.encode(failed)}&httpStatus=$status&message=${Uri.encode(reason)}"
+                    try {
+                        view.loadUrl(assetUrl)
+                        return
+                    } catch (_: Exception) {
+
+                    }
+                    callbacks.onError(status, reason)
+                    return
+                }
+
+            }
+
+            override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
+                val primary = try { error.primaryError } catch (_: Exception) { -1 }
+                val url = error.url ?: ""
+                val message = "SSL error: $primary"
+                val assetUrl = "file:///android_asset/error.html?failedUrl=${Uri.encode(url)}&sslError=$primary&message=${Uri.encode(message)}"
+                try {
+                    view.loadUrl(assetUrl)
+                    handler.cancel()
+                    return
+                } catch (_: Exception) {
+
+                }
+                handler.cancel()
+                callbacks.onError(primary, message)
             }
 
             override fun onReceivedError(
@@ -129,6 +262,27 @@ fun configureWebView(
                 description: String?,
                 failingUrl: String?
             ) {
+                val shouldShowErrorPage = when (errorCode) {
+                    WebViewClient.ERROR_HOST_LOOKUP,
+                    WebViewClient.ERROR_CONNECT,
+                    WebViewClient.ERROR_TIMEOUT,
+                    WebViewClient.ERROR_UNKNOWN,
+                    WebViewClient.ERROR_PROXY_AUTHENTICATION -> true
+                    else -> false
+                }
+
+                if (shouldShowErrorPage) {
+                    val failed = failingUrl.orEmpty()
+                    val message = description.orEmpty()
+                    val assetUrl = "file:///android_asset/error.html?failedUrl=${Uri.encode(failed)}&code=$errorCode&message=${Uri.encode(message)}"
+                    try {
+                        view.loadUrl(assetUrl)
+                        return
+                    } catch (_: Exception) {
+                        
+                    }
+                }
+
                 callbacks.onError(errorCode, description)
             }
         }
@@ -180,10 +334,7 @@ fun configureWebView(
                 isUserGesture: Boolean,
                 resultMsg: Message?
             ): Boolean {
-                val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
-                transport.webView = this@with
-                resultMsg.sendToTarget()
-                return true
+                return false
             }
         }
 

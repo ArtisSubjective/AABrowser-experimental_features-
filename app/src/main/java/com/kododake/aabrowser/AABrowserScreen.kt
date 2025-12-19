@@ -34,7 +34,7 @@ class AABrowserScreen(carContext: CarContext) : Screen(carContext), SurfaceCallb
 
     override fun onGetTemplate(): Template {
         val pane = Pane.Builder()
-            .addRow(Row.Builder().setTitle("ブラウザ起動中...").build())
+            .addRow(Row.Builder().setTitle("Starting Browser...").build())
             .build()
         val contentTemplate = PaneTemplate.Builder(pane).build()
         return MapWithContentTemplate.Builder()

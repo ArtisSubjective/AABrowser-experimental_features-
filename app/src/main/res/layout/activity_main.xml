@@ -5,18 +5,7 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true">
 
-    <WebView
-        android:id="@+id/webView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:overScrollMode="never" />
-
-    <FrameLayout
-        android:id="@+id/fullscreenContainer"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@android:color/black"
-        android:visibility="gone" />
+        
 
     <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/progressIndicator"
@@ -25,6 +14,25 @@
         android:layout_gravity="top"
         android:visibility="gone"
         app:trackThickness="4dp" />
+
+    <FrameLayout
+        android:id="@+id/contentRoot"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:overScrollMode="never" />
+
+        <FrameLayout
+            android:id="@+id/fullscreenContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+    </FrameLayout>
 
     <FrameLayout
         android:id="@+id/menuOverlay"
@@ -112,7 +120,10 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:hint="@string/menu_address_label"
-                            app:endIconMode="clear_text">
+                            app:endIconMode="custom"
+                            app:endIconDrawable="@drawable/abc_ic_clear_material"
+                            app:endIconTint="?attr/colorOnSurface"
+                            app:endIconContentDescription="@string/clear_text_end_icon_content_description">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/addressEdit"
@@ -208,17 +219,73 @@
                                 android:layout_height="wrap_content"
                                 android:text="@string/menu_open_external" />
 
-                            <ImageButton
-                                android:id="@+id/buttonExternalGithub"
-                                android:layout_width="wrap_content"
+                            <LinearLayout
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
-                                android:background="?attr/selectableItemBackgroundBorderless"
-                                android:contentDescription="@string/menu_open_github"
-                                android:padding="8dp"
-                                android:src="@drawable/ic_github"
-                                app:tint="?attr/colorOnSurface" />
+                                android:layout_weight="1"
+                                android:orientation="horizontal"
+                                android:gravity="end|center_vertical">
+
+                                <ImageButton
+                                    android:id="@+id/buttonExternalGithub"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:contentDescription="@string/menu_open_github"
+                                    android:padding="8dp"
+                                    android:src="@drawable/ic_github"
+                                    app:tint="?attr/colorOnSurface" />
+
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:layout_marginStart="8dp"
+                                    android:gravity="end">
+
+                                    <TextView
+                                        android:id="@+id/githubCredit"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/app_credit"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                                        android:textAllCaps="false" />
+                                        
+                                    <TextView
+                                        android:id="@+id/menuVersion"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:gravity="end"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                        android:textAllCaps="false"
+                                        android:textColor="?attr/colorOnSurface"
+                                        android:text="unknown" />
+
+                                    <TextView
+                                        android:id="@+id/githubOpen"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/menu_open_github"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                        android:textAllCaps="false"
+                                        android:clickable="true"
+                                        android:focusable="true" />
+
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                            
                         </LinearLayout>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonCheckLatest"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Check latest" />
+
                     </LinearLayout>
                 </androidx.core.widget.NestedScrollView>
 
@@ -275,7 +342,8 @@
                 </LinearLayout>
             </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
-    </FrameLayout>
+
+            </FrameLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/menuFab"
@@ -284,6 +352,8 @@
         android:layout_gravity="bottom|start"
         android:layout_margin="16dp"
         android:contentDescription="@string/menu_open_description"
-        app:srcCompat="@android:drawable/ic_menu_more" />
+        app:srcCompat="@android:drawable/ic_menu_more"
+        app:tint="?attr/colorOnPrimary"
+        app:backgroundTint="?attr/colorPrimary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

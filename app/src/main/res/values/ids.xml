@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="webview_original_user_agent_tag" type="id" />
+    <item name="webview_allow_once_uri_tag" type="id" />
 </resources>

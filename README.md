@@ -103,6 +103,16 @@ This project thrives on community contributions! Whether you're fixing bugs, add
 
 ---
 
+## Special Thanks
+
+[jdrch](https://github.com/jdrch)
+* I saw your comment about using Obtainium in an article and thought it was a brilliant idea! I’ve updated the README to include it. Thank you for the suggestion!
+
+[Obtainium](https://github.com/ImranR98/Obtainium)
+* A great tool that makes app updates from GitHub seamless.
+
+---
+
 ## Donation
 
 If you like the application, please consider making a donation. As a student developer working on a tight budget, your support really helps me keep this project alive and covers my daily expenses!
